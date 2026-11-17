@@ -1,4 +1,9 @@
 
+using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.EntityFrameworkCore;
+
 namespace StorageApi
 {
   public class Program
@@ -6,6 +11,9 @@ namespace StorageApi
     public static void Main(string[] args)
     {
       var builder = WebApplication.CreateBuilder(args);
+      var connectionString = builder.Configuration.GetConnectionString("StorageApiContext") ?? throw new InvalidOperationException("Connection string 'StorageApiContext' not found.");
+
+      builder.Services.AddDbContext<StorageApiContext>(options => options.UseSqlServer(connectionString));
 
       // Add services to the container.
 
