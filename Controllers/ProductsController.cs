@@ -142,7 +142,7 @@ public class ProductsController : ControllerBase
             Id = product.Id,
             Name = product.Name,
             Price = product.Price,
-            Count = product.Count
+            Count = product.Count,
         };
     }
 }
