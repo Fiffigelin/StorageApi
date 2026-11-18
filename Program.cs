@@ -5,6 +5,10 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using System;
+using Microsoft.AspNetCore.Hosting.Server;
+using Microsoft.AspNetCore.Hosting.Server.Features;
+using System.Linq;
+using System.Diagnostics;
 
 namespace StorageApi
 {
@@ -17,25 +21,51 @@ namespace StorageApi
 
       builder.Services.AddDbContext<StorageApiContext>(options => options.UseSqlServer(connectionString));
 
-      // Add services to the container.
-
       builder.Services.AddControllers();
-      // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-      builder.Services.AddOpenApi();
+
+      builder.Services.AddEndpointsApiExplorer();
+      builder.Services.AddSwaggerGen();
 
       var app = builder.Build();
 
-      // Configure the HTTP request pipeline.
-      if(app.Environment.IsDevelopment())
+      if (app.Environment.IsDevelopment())
       {
-        app.MapOpenApi();
+        app.UseSwagger();
+
+        app.UseSwaggerUI();
+
+        // Öppna Swagger i webbläsaren när appen har startat
+        app.Lifetime.ApplicationStarted.Register(() =>
+        {
+          var address = app.Services
+          .GetRequiredService<IServer>()
+          .Features.Get<IServerAddressesFeature>()?
+          .Addresses.FirstOrDefault();
+
+          if (address is null) return;
+
+          var url = address
+          .Replace("0.0.0.0", "localhost")
+          .Replace("[::]", "localhost")
+          .TrimEnd('/') + "/swagger";
+
+          try
+          {
+            Process.Start(new ProcessStartInfo
+            {
+              FileName = url,
+              UseShellExecute = true
+            });
+          }
+          catch (Exception ex)
+          {
+            Console.WriteLine($"Kunde inte öppna webbläsaren: {ex.Message}");
+          }
+        });
       }
 
       app.UseHttpsRedirection();
-
       app.UseAuthorization();
-
-
       app.MapControllers();
 
       app.Run();
