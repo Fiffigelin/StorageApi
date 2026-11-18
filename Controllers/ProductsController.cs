@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using StorageApi.DTOs;
 using StorageApi.Models;
 using System.Collections.Generic;
 using System.Linq;
@@ -17,14 +18,22 @@ public class ProductsController : ControllerBase
 
     // GET: api/Product
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<Product>>> GetProduct()
+    public async Task<ActionResult<IEnumerable<ProductDto>>> GetProducts()
     {
-        return await _context.Product.ToListAsync();
+        var data = await _context.Product.ToListAsync();
+
+        /**
+        * Den utkommenterade raden är min egen.
+        * Raden under är vad IDE rekommenderade med intellisensen 
+        */
+        // var productsDto = data.Select(d => ProductToDto(d)).ToList();
+        var productsDto = data.Select(ProductToDto).ToList();
+        return productsDto;
     }
 
     // GET: api/Product/5
     [HttpGet("{id}")]
-    public async Task<ActionResult<Product>> GetProduct(int id)
+    public async Task<ActionResult<ProductDto>> GetProduct(int id)
     {
         var product = await _context.Product.FindAsync(id);
 
@@ -33,20 +42,28 @@ public class ProductsController : ControllerBase
             return NotFound();
         }
 
-        return product;
+        return ProductToDto(product);
     }
 
     // PUT: api/Product/5
     // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
     [HttpPut("{id}")]
-    public async Task<IActionResult> PutProduct(int? id, Product product)
+    public async Task<IActionResult> PutProduct(int id, CreateProductDto dto)
     {
-        if (id != product.Id)
+        var data = await _context.Product.FindAsync(id);
+
+        if (data is null)
         {
-            return BadRequest();
+            return NotFound("Produkten kunde inte hittas.");
         }
 
-        _context.Entry(product).State = EntityState.Modified;
+        // helt glömt bort detta med att EF kör med Change Tracking.
+        data.Name = dto.Name;
+        data.Price = dto.Price;
+        data.Category = dto.Category;
+        data.Shelf = dto.Shelf;
+        data.Count = dto.Count;
+        data.Description = dto.Description;
 
         try
         {
@@ -58,10 +75,8 @@ public class ProductsController : ControllerBase
             {
                 return NotFound();
             }
-            else
-            {
-                throw;
-            }
+
+            throw;
         }
 
         return NoContent();
@@ -70,12 +85,20 @@ public class ProductsController : ControllerBase
     // POST: api/Product
     // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
     [HttpPost]
-    public async Task<ActionResult<Product>> PostProduct(Product product)
+    public async Task<ActionResult<ProductDto>> PostProduct(CreateProductDto dto)
     {
+        var product = DtoToProduct(dto);
+
         _context.Product.Add(product);
         await _context.SaveChangesAsync();
 
-        return CreatedAtAction("GetProduct", new { id = product.Id }, product);
+        var result = ProductToDto(product);
+
+        return CreatedAtAction(
+            nameof(GetProduct),
+            new { id = product.Id },
+            result
+        );
     }
 
     // DELETE: api/Product/5
@@ -97,5 +120,29 @@ public class ProductsController : ControllerBase
     private bool ProductExists(int? id)
     {
         return _context.Product.Any(e => e.Id == id);
+    }
+
+    private static Product DtoToProduct(CreateProductDto dto)
+    {
+        return new Product
+        {
+            Name = dto.Name,
+            Price = dto.Price,
+            Category = dto.Category,
+            Shelf = dto.Shelf,
+            Count = dto.Count,
+            Description = dto.Description
+        };
+    }
+
+    private static ProductDto ProductToDto(Product product)
+    {
+        return new ProductDto
+        {
+            Id = product.Id,
+            Name = product.Name,
+            Price = product.Price,
+            Count = product.Count
+        };
     }
 }
