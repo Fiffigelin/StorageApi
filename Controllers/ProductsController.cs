@@ -117,6 +117,51 @@ public class ProductsController : ControllerBase
         return NoContent();
     }
 
+    [HttpGet("stats")]
+    public async Task<ActionResult<ProductStatsDto>> GetProductStats()
+    {
+        var products = _context.Product;
+
+        var stats = new ProductStatsDto
+        {
+            TotalProducts = await products.CountAsync(),
+
+            TotalStockValue = await products.SumAsync(
+                p => p.Price * p.Count
+            ),
+
+            AveragePrice = await products.AverageAsync(
+                p => (decimal?)p.Price
+            ) ?? 0
+        };
+
+        return Ok(stats);
+    }
+
+    [HttpGet("filter")]
+    public async Task<ActionResult<IEnumerable<ProductDto>>> FilterProducts(
+    [FromQuery] string? category,
+    [FromQuery] string? name)
+    {
+        var query = _context.Product.AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(category))
+        {
+            query = query.Where(p => p.Category == category);
+        }
+
+        if (!string.IsNullOrWhiteSpace(name))
+        {
+            query = query.Where(p => p.Name.Contains(name));
+        }
+
+        var data = await query.ToListAsync();
+
+        var productsDto = data.Select(ProductToDto).ToList();
+
+        return productsDto;
+    }
+
     private bool ProductExists(int? id)
     {
         return _context.Product.Any(e => e.Id == id);
